@@ -97,55 +97,52 @@ jobs:
           if [ -z "$EXISTING_DIST" ] || [ "$EXISTING_DIST" = "None" ]; then
             echo "Creating new CloudFront distribution..."
             
-            cat > cloudfront-config.json << 'EOF'
-            {
-              "CallerReference": "f1-fe-$(date +%s)",
-              "Comment": "F1 Frontend Distribution",
-              "DefaultCacheBehavior": {
-                "TargetOriginId": "f1-s3-origin",
-                "ViewerProtocolPolicy": "redirect-to-https",
-                "AllowedMethods": {
-                  "Quantity": 2,
-                  "Items": ["GET", "HEAD"]
+            aws cloudfront create-distribution \
+              --distribution-config '{
+                "CallerReference": "'$(date +%s)'",
+                "Comment": "F1 Frontend Distribution",
+                "DefaultCacheBehavior": {
+                  "TargetOriginId": "f1-s3-origin",
+                  "ViewerProtocolPolicy": "redirect-to-https",
+                  "AllowedMethods": {
+                    "Quantity": 2,
+                    "Items": ["GET", "HEAD"]
+                  },
+                  "CachePolicyId": "658327ea-f89d-4fab-a63d-7e88639e58f6",
+                  "Compress": true
                 },
-                "CachePolicyId": "658327ea-f89d-4fab-a63d-7e88639e58f6",
-                "Compress": true
-              },
-              "Origins": {
-                "Quantity": 1,
-                "Items": [
-                  {
-                    "Id": "f1-s3-origin",
-                    "DomainName": "f1-frontend-prod.s3-website-us-east-1.amazonaws.com",
-                    "CustomOriginConfig": {
-                      "HTTPPort": 80,
-                      "HTTPSPort": 443,
-                      "OriginProtocolPolicy": "http-only"
+                "Origins": {
+                  "Quantity": 1,
+                  "Items": [
+                    {
+                      "Id": "f1-s3-origin",
+                      "DomainName": "f1-frontend-prod.s3-website-us-east-1.amazonaws.com",
+                      "CustomOriginConfig": {
+                        "HTTPPort": 80,
+                        "HTTPSPort": 443,
+                        "OriginProtocolPolicy": "http-only"
+                      }
                     }
-                  }
-                ]
-              },
-              "Enabled": true,
-              "DefaultRootObject": "index.html",
-              "CustomErrorResponses": {
-                "Quantity": 1,
-                "Items": [
-                  {
-                    "ErrorCode": 404,
-                    "ResponsePagePath": "/index.html",
-                    "ResponseCode": "200",
-                    "ErrorCachingMinTTL": 300
-                  }
-                ]
-              }
-            }
-            EOF
-            
-            DISTRIBUTION_ID=$(aws cloudfront create-distribution \
-              --distribution-config file://cloudfront-config.json \
+                  ]
+                },
+                "Enabled": true,
+                "DefaultRootObject": "index.html",
+                "CustomErrorResponses": {
+                  "Quantity": 1,
+                  "Items": [
+                    {
+                      "ErrorCode": 404,
+                      "ResponsePagePath": "/index.html",
+                      "ResponseCode": "200",
+                      "ErrorCachingMinTTL": 300
+                    }
+                  ]
+                }
+              }' \
               --query 'Distribution.Id' \
-              --output text)
+              --output text > /tmp/dist_id.txt
             
+            DISTRIBUTION_ID=$(cat /tmp/dist_id.txt)
             echo "Created distribution: $DISTRIBUTION_ID"
             echo "distribution-id=$DISTRIBUTION_ID" >> $GITHUB_OUTPUT
           else
@@ -154,18 +151,24 @@ jobs:
           fi
 
       - name: Invalidate CloudFront cache
+        if: success()
         run: |
-          if [ -n "${{ steps.cloudfront.outputs.distribution-id }}" ]; then
+          DIST_ID="${{ steps.cloudfront.outputs.distribution-id }}"
+          if [ ! -z "$DIST_ID" ] && [ "$DIST_ID" != "None" ]; then
             aws cloudfront create-invalidation \
-              --distribution-id ${{ steps.cloudfront.outputs.distribution-id }} \
+              --distribution-id "$DIST_ID" \
               --paths "/*"
-            echo "Cache invalidated for distribution ${{ steps.cloudfront.outputs.distribution-id }}"
+            echo "Cache invalidated for distribution $DIST_ID"
+          else
+            echo "No distribution ID available"
           fi
 
       - name: Deployment complete
+        if: always()
         run: |
           echo "✅ Deployment Complete!"
           echo "S3 Website URL: http://f1-frontend-prod.s3-website-us-east-1.amazonaws.com"
-          if [ -n "${{ steps.cloudfront.outputs.distribution-id }}" ]; then
-            echo "CloudFront Distribution ID: ${{ steps.cloudfront.outputs.distribution-id }}"
+          DIST_ID="${{ steps.cloudfront.outputs.distribution-id }}"
+          if [ ! -z "$DIST_ID" ] && [ "$DIST_ID" != "None" ]; then
+            echo "CloudFront Distribution ID: $DIST_ID"
           fi
