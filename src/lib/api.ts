@@ -1,4 +1,4 @@
-const API_BASE_URL = 'http://localhost:3000/api';
+const API_BASE_URL = process.env.VITE_API_URL || 'http://f1-backend-env.eba-6dnmp3xp.us-east-1.elasticbeanstalk.com/api';
 
 export interface Car {
   car_id: string;
