@@ -16,7 +16,6 @@ export interface LeaderboardEntry extends PerformanceScore {
 }
 
 export const calculatePerformanceScore = (car: Car): PerformanceScore => {
-  // Normalize scores to 0-100 scale
   const speedScore = Math.min((car.top_speed_kmh / 370) * 100, 100);
   const accelerationScore = Math.min((3 / car.acceleration_0_100_kmh) * 100, 100);
   const aerodynamicsScore = Math.min((car.downforce_kgf / 3500) * 100, 100);
