@@ -65,7 +65,7 @@ export default function Auth() {
           <div className="inline-flex items-center gap-2 mb-4">
             <Flag className="h-8 w-8 text-primary" />
             <span className="text-2xl font-bold bg-gradient-racing bg-clip-text text-transparent">
-              F1 Manager
+              F1 Manager - Frontend
             </span>
           </div>
           <p className="text-muted-foreground">Access your racing F1 dashboard</p>
